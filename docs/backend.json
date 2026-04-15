@@ -1,0 +1,122 @@
+{
+  "entities": {
+    "Model": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Model",
+      "type": "object",
+      "description": "Represents an uploaded 3D model, containing its metadata, storage location, and sharing information for the ModelVue application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Model entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The user-friendly title of the 3D model, often derived from the original filename."
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional detailed description of the 3D model provided by the user."
+        },
+        "originalFileName": {
+          "type": "string",
+          "description": "The original name of the file when it was uploaded by the user."
+        },
+        "fileFormat": {
+          "type": "string",
+          "description": "The detected format of the 3D model (e.g., 'gltf', 'obj', 'stl'). This aligns with the supported formats of the application."
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "The size of the 3D model file in bytes."
+        },
+        "fileUrl": {
+          "type": "string",
+          "description": "The URL where the actual 3D model file is stored (e.g., a cloud storage bucket or a local server path).",
+          "format": "uri"
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "description": "An optional URL to a generated thumbnail image for the model, used for previews and listings.",
+          "format": "uri"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "The timestamp indicating when the model file was uploaded.",
+          "format": "date-time"
+        },
+        "shareId": {
+          "type": "string",
+          "description": "A unique, short identifier generated for this model, used to create publicly shareable links."
+        },
+        "isPublic": {
+          "type": "boolean",
+          "description": "A boolean flag indicating whether the model is publicly accessible via its shareable link."
+        },
+        "uploaderId": {
+          "type": "string",
+          "description": "Reference to the unique identifier of the user who uploaded this model. (Relationship: User 1:N Model)"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "originalFileName",
+        "fileFormat",
+        "fileSize",
+        "fileUrl",
+        "uploadDate",
+        "shareId",
+        "isPublic",
+        "uploaderId"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}/models/{modelId}",
+        "definition": {
+          "entityName": "Model",
+          "schema": {
+            "$ref": "#/backend/entities/Model"
+          },
+          "description": "Private collection for 3D models uploaded by a specific user. This path establishes a clear 1:N relationship between a User and their Models. The 'uploaderId' field within the document is denormalized to match the 'userId' parameter from the path, ensuring Authorization Independence and simple, robust ownership-based security rules (request.auth.uid == userId). Includes the 'isPublic' flag to indicate if a corresponding public metadata entry exists. Supports QAPs for listing all models owned by a user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns these models, derived from request.auth.uid."
+            },
+            {
+              "name": "modelId",
+              "description": "The unique identifier for a specific 3D model within the user's collection."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/public_models_metadata/{shareId}",
+        "definition": {
+          "entityName": "Model",
+          "schema": {
+            "$ref": "#/backend/entities/Model"
+          },
+          "description": "Publicly accessible collection for metadata of shared 3D models. The document ID is the 'shareId', enabling direct and efficient lookup for public links. This collection contains only the necessary public-facing fields of the 'Model' entity, including 'fileUrl' and 'thumbnailUrl', along with the 'uploaderId' for reference (not for authorization in this context). This structure ensures Authorization Independence for public access and supports QAPs for direct retrieval of public model metadata without authentication.",
+          "params": [
+            {
+              "name": "shareId",
+              "description": "A unique, short identifier generated for a publicly shared model, used as the document ID for direct access."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to adhere strictly to the CORE DESIGN PRINCIPLES and DESIGN STRATEGY MANDATES, prioritizing Authorization Independence, Structural Segregation, and Query Accessibility Patterns (QAPs). The primary entity, 'Model', represents user-uploaded 3D models which can either be private to the uploader or publicly shareable.\n\n**Authorization Independence:**\nTo achieve Authorization Independence, the design employs a two-pronged approach based on the access patterns for models:\n1.  **User-Owned Models:** Models directly owned by a user are stored under `/users/{userId}/models/{modelId}`. Authorization for these models relies solely on the path (`request.auth.uid == userId`). The `uploaderId` field within the document is denormalized to explicitly match the `userId` in the path, making the ownership explicit and removing any need for `get()` calls to a parent `User` document for authorization. This allows for atomic creation and modification operations without complex rule dependencies.\n2.  **Publicly Shared Models:** For models marked as `isPublic: true`, a separate, denormalized record is maintained in the `/public_models_metadata/{shareId}` collection. The document ID for this collection is the `shareId` itself, allowing direct and efficient access to public models via their shareable link. Authorization for this collection is simply `allow read: if true;` as its very existence implies public access. This entirely decouples public access from the user's private model collection, preventing hierarchical authorization checks.\n\n**Structural Segregation and QAPs:**\nStructural Segregation is applied by separating private (user-scoped) models from their public metadata. This ensures that all documents within `/users/{userId}/models` share the same security posture (owner-only access), and all documents within `/public_models_metadata` share a different, more permissive security posture (public read access).\n\nThis segregation directly supports QAPs:\n*   **Listing User-Owned Models:** A user can easily list all their uploaded models by querying `users/{userId}/models` where `userId` matches `request.auth.uid`. This query is efficient and automatically secured by path-based rules, fulfilling the QAP for owner-scoped listings.\n*   **Accessing Public Models:** Public models are accessed directly via their `shareId` (e.g., `public_models_metadata/{shareId}`). This is a direct document `get` by ID, which is highly efficient. The structure avoids scenarios where rules would need to filter public models from private ones within a single collection, which is not supported by Firestore security rules for `list` operations.\n\n**Denormalization Strategy:**\nKey fields like `uploaderId` (for user-owned models) and relevant public-facing fields (for public models) are denormalized. When a model's `isPublic` status changes, or a model is created/deleted, a Cloud Function would be responsible for maintaining consistency between the `/users/{userId}/models/{modelId}` document and its corresponding `/public_models_metadata/{shareId}` entry. This ensures that security rules can always make atomic decisions based on the current document's data without needing to fetch related documents."
+  }
+}

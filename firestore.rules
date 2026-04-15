@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * MODELVUE SECURITY RULES - PROTOTYPING MODE
+     *
+     * CORE PHILOSOPHY:
+     * This ruleset implements a strict user-ownership model for private 3D model assets while 
+     * providing a decoupled, public-facing layer for shared content. It prioritizes 
+     * Authorization Independence by using path-based checks for user data and a specialized 
+     * collection for public metadata to ensure performant and secure access.
+     *
+     * DATA STRUCTURE:
+     * 1. /users/{userId}/models/{modelId}: Private, owner-only collection for storing 3D model 
+     *    metadata and file references.
+     * 2. /public_models_metadata/{shareId}: Publicly readable collection containing denormalized 
+     *    metadata for models marked as shared.
+     *
+     * KEY SECURITY DECISIONS:
+     * - Ownership Enforcement: All writes and reads in the user-scoped path are strictly 
+     *   restricted to the authenticated user matching the {userId} parameter.
+     * - Relational Integrity: On model creation, we enforce that the internal 'uploaderId' 
+     *   matches the path parameter to prevent data cross-talk.
+     * - Structural Segregation: Public access is entirely separated into a top-level collection. 
+     *   This avoids complex query filters on the private user collection and prevents 
+     *   accidental exposure of private data.
+     * - Write Restriction: Writing to 'public_models_metadata' is disabled for client SDKs, 
+     *   as these documents are intended to be managed by secure backend processes (Cloud Functions) 
+     *   to maintain synchronization with the source-of-truth private models.
+     */
+
+    // --- HELPER FUNCTIONS ---
+
+    /** 
+     * @description Basic check to see if the request is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** 
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** 
+     * @description Combines ownership check with existence check for destructive/modifying operations.
+     */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for the private user models collection. Enforces strict ownership and relational integrity.
+     * @path /users/{userId}/models/{modelId}
+     * @allow (get, list, create, update, delete) if the user's UID matches the path {userId}.
+     * @deny Any request where the UID does not match the {userId} in the path.
+     * @principle Restricts access to a user's own data tree and validates relational integrity on creation.
+     */
+    match /users/{userId}/models/{modelId} {
+      allow get, list: if isOwner(userId);
+      
+      // Prototyping Mode: We only validate the critical 'uploaderId' relationship field.
+      allow create: if isOwner(userId) && request.resource.data.uploaderId == userId;
+      
+      // Prototyping Mode: Ensure the 'uploaderId' remains immutable during updates.
+      allow update: if isExistingOwner(userId) && request.resource.data.uploaderId == resource.data.uploaderId;
+      
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for the public metadata collection. Provides read-only access for shared links.
+     * @path /public_models_metadata/{shareId}
+     * @allow (get, list) for any user, including unauthenticated users, to support public sharing.
+     * @deny (create, update, delete) for all client-side requests; managed via administrative backend.
+     * @principle Structural Segregation for public consumption and backend-managed consistency.
+     */
+    match /public_models_metadata/{shareId} {
+      allow get, list: if true;
+      
+      // Client writes are disabled because the IR reasoning specifies Cloud Functions manage this collection.
+      allow create, update, delete: if false;
+    }
+
+    // --- GLOBAL DENY ---
+    // Explicitly deny any paths not covered by the match patterns above.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+/**
+ * ARCHITECT NOTES:
+ * 1. Timestamp validation is omitted per Prototyping Mode requirements to allow client-side flexibility.
+ * 2. This ruleset assumes 'public_models_metadata' is a mirror of specific fields; if users 
+ *    need to write here directly, the 'uploaderId' must be verified against 'request.auth.uid'.
+ * 3. Relational integrity checks (uploaderId == userId) are implemented on 'create' to ensure 
+ *    path/data consistency.
+ */
