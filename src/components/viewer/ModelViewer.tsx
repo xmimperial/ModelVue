@@ -3,7 +3,8 @@
 import React, { useCallback } from 'react';
 import ThreeCanvas from './ThreeCanvas';
 import DropOverlay from './DropOverlay';
-import Sidebar from './Sidebar';
+import MetadataSidebar from './MetadataSidebar';
+import ControlsSidebar from './ControlsSidebar';
 import Controls from './Controls';
 import { Upload, ShieldCheck, AlertCircle, RefreshCcw } from 'lucide-react';
 import { validateFile, SUPPORTED_EXTENSIONS } from '@/lib/file-validation';
@@ -39,64 +40,64 @@ const ModelViewer = () => {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-[#21252C]" role="main" aria-label="ModelVue 3D Viewer Application">
-      {/* Three.js Scene */}
+    <div className="relative w-full h-screen overflow-hidden bg-background" role="main" aria-label="ModelVue 3D Viewer Application">
+      {/* Three.js Scene - Layer 0 */}
       <ThreeCanvas />
 
-      {/* Main UI Layer */}
-      <Sidebar />
+      {/* Persistent UI Layer - Layer 1 */}
+      <MetadataSidebar />
+      <ControlsSidebar />
       
       {file && !isLoading && !error && <Controls />}
 
-      {/* Full Screen Drop Zone */}
+      {/* Drop Interaction Layer - Layer 2 */}
       <DropOverlay onFileDrop={handleFileDrop} />
 
-      {/* Error State */}
+      {/* Critical Feedback Overlays - Layer 3 */}
       {error && !isLoading && (
         <div 
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 bg-[#21252C]/40 backdrop-blur-[2px]"
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-50 bg-background/60 backdrop-blur-md"
           role="alert"
           aria-live="assertive"
         >
-           <div className="max-w-md text-center px-6 animate-in fade-in zoom-in duration-300">
-            <div className="mb-6 inline-flex items-center justify-center p-6 rounded-3xl bg-destructive/10 border border-destructive/20">
+           <div className="max-w-md text-center px-8 py-12 bg-card rounded-[2rem] border border-destructive/20 shadow-2xl pointer-events-auto animate-in zoom-in-95 duration-300">
+            <div className="mb-8 inline-flex items-center justify-center p-6 rounded-3xl bg-destructive/10 border border-destructive/20">
               <AlertCircle className="w-12 h-12 text-destructive" aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-headline font-black mb-4 tracking-tight text-destructive uppercase">
-              Failed to load model
+            <h2 className="text-3xl font-headline font-black mb-4 tracking-tight text-destructive uppercase">
+              Processing Error
             </h2>
-            <p className="text-muted-foreground font-body text-sm mb-8 leading-relaxed">
+            <p className="text-muted-foreground font-body text-base mb-10 leading-relaxed">
               {error}
             </p>
-            <div className="pointer-events-auto">
-              <Button 
-                onClick={reset}
-                className="bg-primary hover:bg-primary/90 rounded-xl gap-2 px-8 font-bold"
-                aria-label="Return to Home and clear error"
-              >
-                <RefreshCcw className="w-4 h-4" />
-                Return to Home
-              </Button>
-            </div>
+            <Button 
+              onClick={reset}
+              variant="destructive"
+              className="rounded-2xl h-14 px-10 font-bold text-lg gap-3 shadow-xl shadow-destructive/20 active:scale-95 transition-all"
+              aria-label="Return to Home and clear error"
+            >
+              <RefreshCcw className="w-5 h-5" />
+              Reset Viewer
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Empty State / Initial Instructions */}
+      {/* Initial Landing State */}
       {!file && !error && !isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-          <div className="max-w-xl text-center px-6">
-            <div className="mb-8 inline-flex items-center justify-center p-6 rounded-3xl bg-primary/10 border border-primary/20 backdrop-blur-sm animate-pulse">
-              <Upload className="w-12 h-12 text-primary" aria-hidden="true" />
+          <div className="max-w-2xl text-center px-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="mb-10 inline-flex items-center justify-center p-8 rounded-[2.5rem] bg-primary/10 border border-primary/20 backdrop-blur-xl shadow-2xl">
+              <Upload className="w-16 h-16 text-primary" aria-hidden="true" />
             </div>
-            <h1 className="text-4xl font-headline font-black mb-4 tracking-tight">
-              Drag and drop 3D models here
+            <h1 className="text-5xl font-headline font-black mb-6 tracking-tighter leading-none bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">
+              Elevate your 3D assets
             </h1>
-            <p className="text-muted-foreground font-body text-lg mb-8">
-              Professional browser-based inspection for modern engineering workflows.
+            <p className="text-muted-foreground font-body text-xl mb-12 leading-relaxed max-w-lg mx-auto">
+              Professional, browser-native model inspection with sub-millisecond geometry analysis.
             </p>
             
-            <div className="relative pointer-events-auto flex flex-col items-center gap-4">
+            <div className="relative pointer-events-auto flex flex-col items-center gap-6">
               <input
                 type="file"
                 id="file-upload"
@@ -107,40 +108,30 @@ const ModelViewer = () => {
               />
               <label 
                 htmlFor="file-upload" 
-                className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-bold font-headline hover:bg-primary/90 transition-all cursor-pointer shadow-xl shadow-primary/20 active:scale-95"
+                className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-white rounded-[1.5rem] text-lg font-black font-headline hover:bg-primary/90 transition-all cursor-pointer shadow-2xl shadow-primary/30 active:scale-95 hover:translate-y-[-2px]"
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('file-upload')?.click() }}
               >
-                Browse Files
+                Inspect New Model
               </label>
               
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60 font-code uppercase tracking-wider">
-                <ShieldCheck className="w-3 h-3" />
-                Secure Sandbox Processing
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground/40 font-code uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                <ShieldCheck className="w-3 h-3 text-accent" />
+                Zero-Knowledge Privacy Sandbox
               </div>
             </div>
 
-            <p className="mt-12 text-[11px] font-code text-muted-foreground/60 uppercase tracking-widest leading-loose max-w-lg mx-auto">
-              Supported formats: {SUPPORTED_EXTENSIONS.join(', ')}
+            <p className="mt-16 text-[10px] font-code text-muted-foreground/30 uppercase tracking-[0.2em] leading-loose max-w-md mx-auto">
+              Industrial grade support: {SUPPORTED_EXTENSIONS.slice(0, 10).join(', ')} ...
             </p>
           </div>
         </div>
       )}
 
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-50 bg-[#21252C]/20 backdrop-blur-[2px]" role="status" aria-live="polite">
-          <div className="text-center">
-            <RefreshCcw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-            <p className="text-lg font-bold">Analyzing geometry...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Background Aesthetic Elements */}
-      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] rounded-full pointer-events-none" aria-hidden="true" />
-      <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-accent/5 blur-[120px] rounded-full pointer-events-none" aria-hidden="true" />
+      {/* Global Background Elements */}
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[150px] rounded-full pointer-events-none" aria-hidden="true" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/5 blur-[120px] rounded-full pointer-events-none" aria-hidden="true" />
     </div>
   );
 };

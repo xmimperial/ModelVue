@@ -1,13 +1,12 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 218 14% 15%;
+    --background: 218 14% 11%;
     --foreground: 0 0% 98%;
-    --card: 218 14% 12%;
+    --card: 218 14% 14%;
     --card-foreground: 0 0% 98%;
     --popover: 218 14% 12%;
     --popover-foreground: 0 0% 98%;
@@ -15,16 +14,16 @@
     --primary-foreground: 0 0% 100%;
     --secondary: 218 14% 20%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 218 10% 25%;
+    --muted: 218 10% 20%;
     --muted-foreground: 218 10% 65%;
     --accent: 186 84% 56%;
     --accent-foreground: 218 14% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 218 14% 25%;
-    --input: 218 14% 25%;
+    --border: 218 14% 22%;
+    --input: 218 14% 22%;
     --ring: 216 100% 59%;
-    --radius: 0.75rem;
+    --radius: 1rem;
   }
 }
 
@@ -33,7 +32,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body overflow-hidden;
+    @apply bg-background text-foreground font-body overflow-hidden selection:bg-primary/30;
   }
 }
 
@@ -48,4 +47,15 @@
 
 .font-code {
   font-family: 'Source Code Pro', monospace;
+}
+
+/* Custom Scrollbar for sidebars */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted/50 rounded-full hover:bg-muted;
 }
