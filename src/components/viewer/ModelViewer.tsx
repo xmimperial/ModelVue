@@ -1,21 +1,23 @@
 
 "use client"
 
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import ThreeCanvas from './ThreeCanvas';
 import DropOverlay from './DropOverlay';
 import Sidebar from './Sidebar';
 import Controls from './Controls';
 import { Upload, ShieldCheck } from 'lucide-react';
 import { validateFile, SUPPORTED_EXTENSIONS } from '@/lib/file-validation';
+import { useViewerStore } from '@/store/use-viewer-store';
 
 const ModelViewer = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [metadata, setMetadata] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fitTrigger, setFitTrigger] = useState(0);
-  const [resetTrigger, setResetTrigger] = useState(0);
+  const { 
+    file, 
+    isLoading, 
+    error, 
+    setFile, 
+    setError 
+  } = useViewerStore();
 
   const handleFileDrop = useCallback((droppedFile: File) => {
     const validation = validateFile(droppedFile);
@@ -23,13 +25,11 @@ const ModelViewer = () => {
     if (!validation.isValid) {
       setError(validation.error);
       setFile(null);
-      setMetadata(null);
       return;
     }
 
     setFile(droppedFile);
-    setError(null);
-  }, []);
+  }, [setFile, setError]);
 
   const handleInputFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -40,24 +40,12 @@ const ModelViewer = () => {
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#21252C]">
       {/* Three.js Scene */}
-      <ThreeCanvas 
-        file={file} 
-        onModelLoaded={setMetadata} 
-        onLoading={setIsLoading} 
-        onError={setError}
-        fitToViewTrigger={fitTrigger}
-        resetCameraTrigger={resetTrigger}
-      />
+      <ThreeCanvas />
 
       {/* Main UI Layer */}
-      <Sidebar metadata={metadata} isLoading={isLoading} error={error} />
+      <Sidebar />
       
-      {file && !isLoading && !error && (
-        <Controls 
-          onFitToView={() => setFitTrigger(prev => prev + 1)} 
-          onResetCamera={() => setResetTrigger(prev => prev + 1)} 
-        />
-      )}
+      {file && !isLoading && !error && <Controls />}
 
       {/* Full Screen Drop Zone */}
       <DropOverlay onFileDrop={handleFileDrop} />

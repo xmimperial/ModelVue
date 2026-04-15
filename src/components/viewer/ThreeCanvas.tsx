@@ -5,34 +5,34 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { fitModelToView, loadModel, disposeObject } from '@/lib/three-utils';
-
-interface ThreeCanvasProps {
-  file: File | null;
-  onModelLoaded?: (metadata: any) => void;
-  onLoading?: (isLoading: boolean) => void;
-  onError?: (error: string) => void;
-  fitToViewTrigger?: number;
-  resetCameraTrigger?: number;
-}
+import { useViewerStore } from '@/store/use-viewer-store';
 
 /**
  * Implementation of the Rendering Pipeline Lifecycle:
- * Upload (file prop) -> Parse (loadModel) -> Normalize (fitModelToView) -> Render (loop) -> Dispose (cleanup)
+ * Upload (store) -> Parse (loadModel) -> Normalize (fitModelToView) -> Render (loop) -> Dispose (cleanup)
  */
-const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
-  file,
-  onModelLoaded,
-  onLoading,
-  onError,
-  fitToViewTrigger,
-  resetCameraTrigger
-}) => {
+const ThreeCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const modelRef = useRef<THREE.Object3D | null>(null);
+  
+  const gridHelperRef = useRef<THREE.GridHelper | null>(null);
+  const axesHelperRef = useRef<THREE.AxesHelper | null>(null);
+
+  // Store Subscriptions
+  const file = useViewerStore((state) => state.file);
+  const fitToViewTrigger = useViewerStore((state) => state.fitTrigger);
+  const resetCameraTrigger = useViewerStore((state) => state.resetTrigger);
+  const showGrid = useViewerStore((state) => state.showGrid);
+  const showAxes = useViewerStore((state) => state.showAxes);
+  const wireframe = useViewerStore((state) => state.wireframe);
+  
+  const setMetadata = useViewerStore((state) => state.setMetadata);
+  const setError = useViewerStore((state) => state.setError);
+  const setIsLoading = useViewerStore((state) => state.setIsLoading);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -73,10 +73,14 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
 
     // HELPERS
     const gridHelper = new THREE.GridHelper(20, 20, 0x2E81FF, 0x444444);
+    gridHelper.visible = showGrid;
     scene.add(gridHelper);
+    gridHelperRef.current = gridHelper;
 
     const axesHelper = new THREE.AxesHelper(5);
+    axesHelper.visible = showAxes;
     scene.add(axesHelper);
+    axesHelperRef.current = axesHelper;
 
     // RENDER LOOP
     const animate = () => {
@@ -94,7 +98,6 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
-    // LIFECYCLE STAGE 5: DISPOSE (Cleanup on Unmount)
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(frameId);
@@ -106,13 +109,35 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     };
   }, []);
 
+  // Sync Scene Settings
+  useEffect(() => {
+    if (gridHelperRef.current) gridHelperRef.current.visible = showGrid;
+    if (axesHelperRef.current) axesHelperRef.current.visible = showAxes;
+  }, [showGrid, showAxes]);
+
+  // Sync Wireframe
+  useEffect(() => {
+    if (modelRef.current) {
+      modelRef.current.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(m => m.wireframe = wireframe);
+          } else {
+            mesh.material.wireframe = wireframe;
+          }
+        }
+      });
+    }
+  }, [wireframe]);
+
+  // Model Lifecycle Management
   useEffect(() => {
     if (!file || !sceneRef.current) return;
 
     const handleModelLifecycle = async () => {
-      onLoading?.(true);
+      setIsLoading(true);
       
-      // Cleanup previous model
       if (modelRef.current) {
         sceneRef.current?.remove(modelRef.current);
         disposeObject(modelRef.current);
@@ -120,51 +145,60 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       }
 
       try {
-        // LIFECYCLE STAGE 2: PARSE
         const object = await loadModel(file);
         modelRef.current = object;
         sceneRef.current?.add(object);
 
-        // LIFECYCLE STAGE 3: NORMALIZE
         if (cameraRef.current && controlsRef.current) {
           fitModelToView(object, cameraRef.current, controlsRef.current);
         }
 
-        // METADATA EXTRACTION
+        // Metadata Extraction
         const box = new THREE.Box3().setFromObject(object);
         const size = box.getSize(new THREE.Vector3());
         let polyCount = 0;
         object.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
-            polyCount += (child as THREE.Mesh).geometry.attributes.position.count / 3;
+            const mesh = child as THREE.Mesh;
+            if (mesh.geometry.attributes.position) {
+              polyCount += mesh.geometry.attributes.position.count / 3;
+            }
+            if (wireframe) {
+              if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => m.wireframe = true);
+              } else {
+                mesh.material.wireframe = true;
+              }
+            }
           }
         });
 
-        onModelLoaded?.({
+        setMetadata({
           name: file.name,
           size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
           dimensions: `${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`,
           polygons: Math.floor(polyCount).toLocaleString(),
-          format: file.name.split('.').pop()?.toUpperCase()
+          format: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN'
         });
       } catch (err: any) {
-        onError?.(err.message || 'Failed to load model');
+        setError(err.message || 'Failed to load model');
       } finally {
-        onLoading?.(false);
+        setIsLoading(false);
       }
     };
 
     handleModelLifecycle();
-  }, [file]);
+  }, [file, setMetadata, setError, setIsLoading]);
 
+  // Handle Fit & Reset Triggers
   useEffect(() => {
-    if (fitToViewTrigger && modelRef.current && cameraRef.current && controlsRef.current) {
+    if (fitToViewTrigger > 0 && modelRef.current && cameraRef.current && controlsRef.current) {
       fitModelToView(modelRef.current, cameraRef.current, controlsRef.current);
     }
   }, [fitToViewTrigger]);
 
   useEffect(() => {
-    if (resetCameraTrigger && cameraRef.current && controlsRef.current) {
+    if (resetCameraTrigger > 0 && cameraRef.current && controlsRef.current) {
       controlsRef.current.reset();
       cameraRef.current.position.set(5, 5, 5);
       controlsRef.current.target.set(0, 0, 0);

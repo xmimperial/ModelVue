@@ -2,25 +2,26 @@
 "use client"
 
 import React from 'react';
-import { Info, Loader2, FileText, Move3d, Layers, Boxes, AlertCircle, Box, Upload } from 'lucide-react';
+import { Info, Loader2, FileText, Move3d, Layers, Boxes, AlertCircle, Box, Upload, Grid, Navigation, Activity } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useViewerStore } from '@/store/use-viewer-store';
 
-interface Metadata {
-  name: string;
-  size: string;
-  dimensions: string;
-  polygons: string;
-  format: string;
-}
+const Sidebar: React.FC = () => {
+  const metadata = useViewerStore((state) => state.metadata);
+  const isLoading = useViewerStore((state) => state.isLoading);
+  const error = useViewerStore((state) => state.error);
+  
+  const showGrid = useViewerStore((state) => state.showGrid);
+  const showAxes = useViewerStore((state) => state.showAxes);
+  const wireframe = useViewerStore((state) => state.wireframe);
+  
+  const toggleGrid = useViewerStore((state) => state.toggleGrid);
+  const toggleAxes = useViewerStore((state) => state.toggleAxes);
+  const toggleWireframe = useViewerStore((state) => state.toggleWireframe);
 
-interface SidebarProps {
-  metadata: Metadata | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ metadata, isLoading, error }) => {
   return (
     <div className="fixed top-6 left-6 w-80 z-40 space-y-4">
       <Card className="bg-card/80 backdrop-blur-md border-border/50 shadow-2xl">
@@ -80,6 +81,36 @@ const Sidebar: React.FC<SidebarProps> = ({ metadata, isLoading, error }) => {
                   <Layers className="w-3 h-3" /> Polygon Count
                 </label>
                 <p className="text-sm font-code">{metadata.polygons}</p>
+              </div>
+
+              <Separator className="bg-border/30" />
+              
+              <div className="space-y-3">
+                <label className="text-[10px] uppercase font-bold text-primary/70">Scene Settings</label>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Grid className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Label htmlFor="grid-toggle" className="text-xs">Ground Grid</Label>
+                  </div>
+                  <Switch id="grid-toggle" checked={showGrid} onCheckedChange={toggleGrid} />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Label htmlFor="axes-toggle" className="text-xs">World Axes</Label>
+                  </div>
+                  <Switch id="axes-toggle" checked={showAxes} onCheckedChange={toggleAxes} />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Label htmlFor="wire-toggle" className="text-xs">Wireframe Mode</Label>
+                  </div>
+                  <Switch id="wire-toggle" checked={wireframe} onCheckedChange={toggleWireframe} />
+                </div>
               </div>
             </div>
           ) : (

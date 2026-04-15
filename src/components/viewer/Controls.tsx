@@ -5,13 +5,12 @@ import React from 'react';
 import { Maximize, RotateCcw, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { useViewerStore } from '@/store/use-viewer-store';
 
-interface ControlsProps {
-  onFitToView: () => void;
-  onResetCamera: () => void;
-}
+const Controls: React.FC = () => {
+  const triggerFit = useViewerStore((state) => state.triggerFit);
+  const triggerReset = useViewerStore((state) => state.triggerReset);
 
-const Controls: React.FC<ControlsProps> = ({ onFitToView, onResetCamera }) => {
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl">
       <TooltipProvider>
@@ -20,7 +19,7 @@ const Controls: React.FC<ControlsProps> = ({ onFitToView, onResetCamera }) => {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={onFitToView}
+              onClick={triggerFit}
               className="hover:bg-primary/20 hover:text-primary rounded-xl"
             >
               <Maximize className="w-5 h-5" />
@@ -34,7 +33,7 @@ const Controls: React.FC<ControlsProps> = ({ onFitToView, onResetCamera }) => {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={onResetCamera}
+              onClick={triggerReset}
               className="hover:bg-primary/20 hover:text-primary rounded-xl"
             >
               <RotateCcw className="w-5 h-5" />
