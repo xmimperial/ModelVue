@@ -1,0 +1,11 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "model-preview",
+      "description": "A sophisticated 3D model render preview",
+      "imageUrl": "https://picsum.photos/seed/modelvue-1/1200/800",
+      "imageHint": "3D model render"
+    }
+  ]
+}
