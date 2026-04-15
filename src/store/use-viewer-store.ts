@@ -1,4 +1,3 @@
-
 'use client';
 
 import { create } from 'zustand';
@@ -34,6 +33,7 @@ interface ViewerState {
   setError: (error: string | null) => void;
   triggerFit: () => void;
   triggerReset: () => void;
+  reset: () => void;
   
   // Settings Actions
   toggleGrid: () => void;
@@ -67,6 +67,15 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setError: (error) => set({ error, isLoading: false }),
   triggerFit: () => set((state) => ({ fitTrigger: state.fitTrigger + 1 })),
   triggerReset: () => set((state) => ({ resetTrigger: state.resetTrigger + 1 })),
+  
+  reset: () => set({
+    file: null,
+    metadata: null,
+    isLoading: false,
+    error: null,
+    fitTrigger: 0,
+    resetTrigger: 0
+  }),
   
   toggleGrid: () => set((state) => ({ showGrid: !state.showGrid })),
   toggleAxes: () => set((state) => ({ showAxes: !state.showAxes })),

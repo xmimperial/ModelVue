@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useCallback } from 'react';
@@ -6,9 +5,10 @@ import ThreeCanvas from './ThreeCanvas';
 import DropOverlay from './DropOverlay';
 import Sidebar from './Sidebar';
 import Controls from './Controls';
-import { Upload, ShieldCheck } from 'lucide-react';
+import { Upload, ShieldCheck, AlertCircle, RefreshCcw } from 'lucide-react';
 import { validateFile, SUPPORTED_EXTENSIONS } from '@/lib/file-validation';
 import { useViewerStore } from '@/store/use-viewer-store';
+import { Button } from '@/components/ui/button';
 
 const ModelViewer = () => {
   const { 
@@ -16,7 +16,8 @@ const ModelViewer = () => {
     isLoading, 
     error, 
     setFile, 
-    setError 
+    setError,
+    reset
   } = useViewerStore();
 
   const handleFileDrop = useCallback((droppedFile: File) => {
@@ -50,8 +51,34 @@ const ModelViewer = () => {
       {/* Full Screen Drop Zone */}
       <DropOverlay onFileDrop={handleFileDrop} />
 
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 bg-[#21252C]/40 backdrop-blur-[2px]">
+           <div className="max-w-md text-center px-6 animate-in fade-in zoom-in duration-300">
+            <div className="mb-6 inline-flex items-center justify-center p-6 rounded-3xl bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="w-12 h-12 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-headline font-black mb-4 tracking-tight text-destructive uppercase">
+              Failed to load model
+            </h2>
+            <p className="text-muted-foreground font-body text-sm mb-8 leading-relaxed">
+              {error}
+            </p>
+            <div className="pointer-events-auto">
+              <Button 
+                onClick={reset}
+                className="bg-primary hover:bg-primary/90 rounded-xl gap-2 px-8 font-bold"
+              >
+                <RefreshCcw className="w-4 h-4" />
+                Return to Home
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Empty State / Initial Instructions */}
-      {(!file || error) && !isLoading && (
+      {!file && !error && !isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <div className="max-w-xl text-center px-6">
             <div className="mb-8 inline-flex items-center justify-center p-6 rounded-3xl bg-primary/10 border border-primary/20 backdrop-blur-sm animate-pulse">
