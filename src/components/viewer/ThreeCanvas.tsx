@@ -1,10 +1,10 @@
 
 "use client"
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { fitModelToView, loadModel } from '@/lib/three-utils';
+import { fitModelToView, loadModel, disposeObject } from '@/lib/three-utils';
 
 interface ThreeCanvasProps {
   file: File | null;
@@ -15,6 +15,10 @@ interface ThreeCanvasProps {
   resetCameraTrigger?: number;
 }
 
+/**
+ * Implementation of the Rendering Pipeline Lifecycle:
+ * Upload (file prop) -> Parse (loadModel) -> Normalize (fitModelToView) -> Render (loop) -> Dispose (cleanup)
+ */
 const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
   file,
   onModelLoaded,
@@ -29,18 +33,15 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const modelRef = useRef<THREE.Object3D | null>(null);
-  const gridRef = useRef<THREE.GridHelper | null>(null);
-  const axesRef = useRef<THREE.AxesHelper | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Scene Setup
+    // SCENE INITIALIZATION
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x21252C);
     sceneRef.current = scene;
 
-    // Camera Setup
     const camera = new THREE.PerspectiveCamera(
       45,
       window.innerWidth / window.innerHeight,
@@ -50,7 +51,6 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     camera.position.set(5, 5, 5);
     cameraRef.current = camera;
 
-    // Renderer Setup
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -58,12 +58,11 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controlsRef.current = controls;
 
-    // Lighting
+    // LIGHTING
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
@@ -72,34 +71,34 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // Helpers
+    // HELPERS
     const gridHelper = new THREE.GridHelper(20, 20, 0x2E81FF, 0x444444);
-    gridRef.current = gridHelper;
     scene.add(gridHelper);
 
     const axesHelper = new THREE.AxesHelper(5);
-    axesRef.current = axesHelper;
     scene.add(axesHelper);
 
-    // Resize Handler
+    // RENDER LOOP
+    const animate = () => {
+      const frameId = requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+      return frameId;
+    };
+    const frameId = animate();
+
     const handleResize = () => {
-      if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', handleResize);
 
-    // Animation Loop
-    const animate = () => {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
-
+    // LIFECYCLE STAGE 5: DISPOSE (Cleanup on Unmount)
     return () => {
       window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(frameId);
+      if (modelRef.current) disposeObject(modelRef.current);
       renderer.dispose();
       if (containerRef.current) {
         containerRef.current.removeChild(renderer.domElement);
@@ -110,22 +109,28 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
   useEffect(() => {
     if (!file || !sceneRef.current) return;
 
-    const handleModelLoading = async () => {
+    const handleModelLifecycle = async () => {
       onLoading?.(true);
+      
+      // Cleanup previous model
       if (modelRef.current) {
         sceneRef.current?.remove(modelRef.current);
+        disposeObject(modelRef.current);
+        modelRef.current = null;
       }
 
       try {
+        // LIFECYCLE STAGE 2: PARSE
         const object = await loadModel(file);
         modelRef.current = object;
         sceneRef.current?.add(object);
 
+        // LIFECYCLE STAGE 3: NORMALIZE
         if (cameraRef.current && controlsRef.current) {
           fitModelToView(object, cameraRef.current, controlsRef.current);
         }
 
-        // Calculate basic metadata
+        // METADATA EXTRACTION
         const box = new THREE.Box3().setFromObject(object);
         const size = box.getSize(new THREE.Vector3());
         let polyCount = 0;
@@ -149,7 +154,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       }
     };
 
-    handleModelLoading();
+    handleModelLifecycle();
   }, [file]);
 
   useEffect(() => {
