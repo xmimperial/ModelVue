@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -12,7 +11,7 @@ const Controls: React.FC = () => {
   const triggerReset = useViewerStore((state) => state.triggerReset);
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl">
+    <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl" aria-label="Viewer Controls">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -21,6 +20,7 @@ const Controls: React.FC = () => {
               size="icon" 
               onClick={triggerFit}
               className="hover:bg-primary/20 hover:text-primary rounded-xl"
+              aria-label="Fit model to viewport"
             >
               <Maximize className="w-5 h-5" />
             </Button>
@@ -35,6 +35,7 @@ const Controls: React.FC = () => {
               size="icon" 
               onClick={triggerReset}
               className="hover:bg-primary/20 hover:text-primary rounded-xl"
+              aria-label="Reset camera orientation"
             >
               <RotateCcw className="w-5 h-5" />
             </Button>
@@ -42,7 +43,7 @@ const Controls: React.FC = () => {
           <TooltipContent className="font-headline font-medium">Reset orientation</TooltipContent>
         </Tooltip>
 
-        <div className="w-px h-6 bg-border/50 mx-1" />
+        <div className="w-px h-6 bg-border/50 mx-1" role="separator" aria-hidden="true" />
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -50,18 +51,19 @@ const Controls: React.FC = () => {
               variant="ghost" 
               size="icon" 
               className="text-muted-foreground hover:text-accent rounded-xl"
+              aria-label="Interaction shortcuts help"
             >
               <HelpCircle className="w-5 h-5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs space-y-1 font-body text-xs p-3">
+          <TooltipContent className="max-w-xs space-y-1 font-body text-xs p-3" role="dialog" aria-label="Interaction Guide">
             <p><span className="font-bold text-accent">Rotate:</span> Left-Click + Drag</p>
             <p><span className="font-bold text-accent">Pan:</span> Right-Click + Drag</p>
             <p><span className="font-bold text-accent">Zoom:</span> Scroll Mouse</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-    </div>
+    </nav>
   );
 };
 

@@ -226,7 +226,15 @@ const ThreeCanvas: React.FC = () => {
     }
   }, [resetCameraTrigger]);
 
-  return <div ref={containerRef} className="canvas-container" />;
+  return (
+    <div 
+      ref={containerRef} 
+      className="canvas-container" 
+      role="img" 
+      aria-label="3D Model Viewer Scene"
+      tabIndex={0}
+    />
+  );
 };
 
 export default ThreeCanvas;

@@ -39,7 +39,7 @@ const ModelViewer = () => {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-[#21252C]">
+    <div className="relative w-full h-screen overflow-hidden bg-[#21252C]" role="main" aria-label="ModelVue 3D Viewer Application">
       {/* Three.js Scene */}
       <ThreeCanvas />
 
@@ -53,10 +53,14 @@ const ModelViewer = () => {
 
       {/* Error State */}
       {error && !isLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 bg-[#21252C]/40 backdrop-blur-[2px]">
+        <div 
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 bg-[#21252C]/40 backdrop-blur-[2px]"
+          role="alert"
+          aria-live="assertive"
+        >
            <div className="max-w-md text-center px-6 animate-in fade-in zoom-in duration-300">
             <div className="mb-6 inline-flex items-center justify-center p-6 rounded-3xl bg-destructive/10 border border-destructive/20">
-              <AlertCircle className="w-12 h-12 text-destructive" />
+              <AlertCircle className="w-12 h-12 text-destructive" aria-hidden="true" />
             </div>
             <h2 className="text-2xl font-headline font-black mb-4 tracking-tight text-destructive uppercase">
               Failed to load model
@@ -68,6 +72,7 @@ const ModelViewer = () => {
               <Button 
                 onClick={reset}
                 className="bg-primary hover:bg-primary/90 rounded-xl gap-2 px-8 font-bold"
+                aria-label="Return to Home and clear error"
               >
                 <RefreshCcw className="w-4 h-4" />
                 Return to Home
@@ -82,7 +87,7 @@ const ModelViewer = () => {
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <div className="max-w-xl text-center px-6">
             <div className="mb-8 inline-flex items-center justify-center p-6 rounded-3xl bg-primary/10 border border-primary/20 backdrop-blur-sm animate-pulse">
-              <Upload className="w-12 h-12 text-primary" />
+              <Upload className="w-12 h-12 text-primary" aria-hidden="true" />
             </div>
             <h1 className="text-4xl font-headline font-black mb-4 tracking-tight">
               Drag and drop 3D models here
@@ -98,10 +103,14 @@ const ModelViewer = () => {
                 className="hidden"
                 onChange={handleInputFileChange}
                 accept={SUPPORTED_EXTENSIONS.map(ext => `.${ext}`).join(',')}
+                aria-label="Upload 3D Model file"
               />
               <label 
                 htmlFor="file-upload" 
                 className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-bold font-headline hover:bg-primary/90 transition-all cursor-pointer shadow-xl shadow-primary/20 active:scale-95"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('file-upload')?.click() }}
               >
                 Browse Files
               </label>
@@ -119,9 +128,19 @@ const ModelViewer = () => {
         </div>
       )}
 
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-50 bg-[#21252C]/20 backdrop-blur-[2px]" role="status" aria-live="polite">
+          <div className="text-center">
+            <RefreshCcw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+            <p className="text-lg font-bold">Analyzing geometry...</p>
+          </div>
+        </div>
+      )}
+
       {/* Background Aesthetic Elements */}
-      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] rounded-full pointer-events-none" aria-hidden="true" />
+      <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-accent/5 blur-[120px] rounded-full pointer-events-none" aria-hidden="true" />
     </div>
   );
 };
