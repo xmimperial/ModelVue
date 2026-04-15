@@ -1,8 +1,14 @@
 /**
  * @fileOverview 3D Rendering Pipeline Utilities for ModelVue
  * 
- * Focuses on scene manipulation, camera normalization, and resource disposal.
- * Delegating loading logic to LoaderManager.
+ * FOCUS: Camera interaction, scene normalization, and resource lifecycle.
+ * 
+ * LIFECYCLE FLOW:
+ * 1. UPLOAD    - File received from DropZone/Input
+ * 2. PARSE     - LoaderManager dynamically imports correct parser
+ * 3. NORMALIZE - Center geometry and scale camera (fitModelToView)
+ * 4. RENDER    - ThreeCanvas update loop handles frame drawing
+ * 5. DISPOSE   - Recursive cleanup of GPU resources
  */
 
 import * as THREE from 'three';
@@ -17,27 +23,44 @@ export async function loadModel(file: File): Promise<THREE.Object3D> {
 
 /**
  * Stage 3: Normalize - Center and scale the model for the viewport
+ * Uses bounding box logic to ensure any model size fits the screen.
  */
-export function fitModelToView(object: THREE.Object3D, camera: THREE.PerspectiveCamera, controls: any) {
+export function fitModelToView(
+  object: THREE.Object3D, 
+  camera: THREE.PerspectiveCamera, 
+  controls: any
+) {
   const box = new THREE.Box3().setFromObject(object);
-  const size = box.getSize(new THREE.Vector3()).length();
+  const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
 
-  // Reset internal position to center the geometry at world (0,0,0)
-  const offset = new THREE.Vector3().subVectors(new THREE.Vector3(0,0,0), center);
-  object.position.add(offset);
+  // Center the model relative to world (0,0,0)
+  object.position.x += (object.position.x - center.x);
+  object.position.y += (object.position.y - center.y);
+  object.position.z += (object.position.z - center.z);
 
-  controls.reset();
+  // Calculate required camera distance
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const fov = camera.fov * (Math.PI / 180);
+  let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
 
-  const halfSize = size * 0.5;
-  const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
-  const distance = halfSize / Math.tan(halfFov);
+  // Multiplier to ensure some padding around the model
+  cameraZ *= 2.0; 
 
-  camera.position.set(0, size * 0.5, distance * 1.5);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(cameraZ, cameraZ, cameraZ);
   
-  controls.target.set(0, 0, 0);
-  controls.update();
+  // Set controls limit and target
+  const minZ = box.min.z;
+  const cameraToFarEdge = (minZ < 0) ? -minZ + cameraZ : cameraZ - minZ;
+
+  camera.far = cameraToFarEdge * 10;
+  camera.updateProjectionMatrix();
+
+  if (controls) {
+    controls.target.set(0, 0, 0);
+    controls.maxDistance = cameraZ * 10;
+    controls.update();
+  }
 }
 
 /**

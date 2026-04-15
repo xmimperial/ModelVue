@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useEffect, useRef } from 'react';
@@ -8,12 +7,8 @@ import { fitModelToView, loadModel, disposeObject } from '@/lib/three-utils';
 import { useViewerStore } from '@/store/use-viewer-store';
 
 /**
- * Optimized Three.js Canvas component.
- * Features:
- * - WebGL Power Preference for discrete GPUs
- * - Pixel ratio capping for mobile performance
- * - Dynamic resource lifecycle management
- * - Frustum culling (default) and efficient render loop
+ * Interactive Camera and Rendering System.
+ * Implements OrbitControls for rotation, zoom, and panning.
  */
 const ThreeCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,7 +36,7 @@ const ThreeCanvas: React.FC = () => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // SCENE INITIALIZATION
+    // 1. SCENE INITIALIZATION
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x21252C);
     sceneRef.current = scene;
@@ -50,53 +45,52 @@ const ThreeCanvas: React.FC = () => {
       45,
       window.innerWidth / window.innerHeight,
       0.1,
-      5000
+      10000
     );
-    camera.position.set(10, 10, 10);
+    camera.position.set(20, 20, 20);
     cameraRef.current = camera;
 
-    // PERFORMANCE: Use high-performance power preference for complex models
     const renderer = new THREE.WebGLRenderer({ 
       antialias: true, 
       alpha: true,
       powerPreference: 'high-performance' 
     });
     
-    // PERFORMANCE: Cap pixel ratio at 2 to avoid huge performance hits on 4K/retina screens
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
+    // 2. CAMERA CONTROLS (INTERACTION SYSTEM)
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    controls.enableDamping = true; // Smooth transitions
     controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = true;
     controlsRef.current = controls;
 
-    // LIGHTING
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // 3. LIGHTING SYSTEM
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    directionalLight.position.set(10, 20, 15);
-    directionalLight.castShadow = true;
-    scene.add(directionalLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(5, 10, 7.5);
+    scene.add(dirLight);
 
-    // HELPERS
-    const gridHelper = new THREE.GridHelper(50, 50, 0x2E81FF, 0x333333);
+    // 4. HELPERS
+    const gridHelper = new THREE.GridHelper(100, 100, 0x2E81FF, 0x333333);
     gridHelper.visible = showGrid;
     scene.add(gridHelper);
     gridHelperRef.current = gridHelper;
 
-    const axesHelper = new THREE.AxesHelper(10);
+    const axesHelper = new THREE.AxesHelper(5);
     axesHelper.visible = showAxes;
     scene.add(axesHelper);
     axesHelperRef.current = axesHelper;
 
-    // OPTIMIZED RENDER LOOP
+    // 5. RENDER LOOP
     let frameId: number;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
@@ -127,13 +121,13 @@ const ThreeCanvas: React.FC = () => {
     };
   }, []);
 
-  // Sync Scene Settings
+  // Sync helpers
   useEffect(() => {
     if (gridHelperRef.current) gridHelperRef.current.visible = showGrid;
     if (axesHelperRef.current) axesHelperRef.current.visible = showAxes;
   }, [showGrid, showAxes]);
 
-  // Sync Wireframe
+  // Sync wireframe
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.traverse((child) => {
@@ -149,14 +143,13 @@ const ThreeCanvas: React.FC = () => {
     }
   }, [wireframe]);
 
-  // Model Lifecycle Management
+  // Model Loading Pipeline
   useEffect(() => {
     if (!file || !sceneRef.current) return;
 
-    const handleModelLifecycle = async () => {
+    const runPipeline = async () => {
       setIsLoading(true);
       
-      // DISPOSE PREVIOUS MODEL
       if (modelRef.current) {
         sceneRef.current?.remove(modelRef.current);
         disposeObject(modelRef.current);
@@ -172,24 +165,16 @@ const ThreeCanvas: React.FC = () => {
           fitModelToView(object, cameraRef.current, controlsRef.current);
         }
 
-        // METADATA EXTRACTION
+        // Extract metadata
         const box = new THREE.Box3().setFromObject(object);
         const size = box.getSize(new THREE.Vector3());
         let polyCount = 0;
         object.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
-            // Frustum Culling is on by default, ensuring efficient rendering of large scenes
             mesh.frustumCulled = true; 
             if (mesh.geometry.attributes.position) {
               polyCount += mesh.geometry.attributes.position.count / 3;
-            }
-            if (wireframe) {
-              if (Array.isArray(mesh.material)) {
-                mesh.material.forEach(m => m.wireframe = true);
-              } else {
-                mesh.material.wireframe = true;
-              }
             }
           }
         });
@@ -208,10 +193,10 @@ const ThreeCanvas: React.FC = () => {
       }
     };
 
-    handleModelLifecycle();
+    runPipeline();
   }, [file, setMetadata, setError, setIsLoading]);
 
-  // Handle Fit & Reset Triggers
+  // Triggers
   useEffect(() => {
     if (fitToViewTrigger > 0 && modelRef.current && cameraRef.current && controlsRef.current) {
       fitModelToView(modelRef.current, cameraRef.current, controlsRef.current);
@@ -221,7 +206,9 @@ const ThreeCanvas: React.FC = () => {
   useEffect(() => {
     if (resetCameraTrigger > 0 && cameraRef.current && controlsRef.current) {
       controlsRef.current.reset();
-      cameraRef.current.position.set(10, 10, 10);
+      // OrbitControls.reset() handles restoring camera to its initial state
+      // but if we want a hard reset to (20,20,20):
+      cameraRef.current.position.set(20, 20, 20);
       controlsRef.current.target.set(0, 0, 0);
       controlsRef.current.update();
     }
