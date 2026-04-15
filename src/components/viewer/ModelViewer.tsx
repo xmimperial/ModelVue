@@ -6,7 +6,8 @@ import ThreeCanvas from './ThreeCanvas';
 import DropOverlay from './DropOverlay';
 import Sidebar from './Sidebar';
 import Controls from './Controls';
-import { Upload } from 'lucide-react';
+import { Upload, ShieldCheck } from 'lucide-react';
+import { validateFile, SUPPORTED_EXTENSIONS } from '@/lib/file-validation';
 
 const ModelViewer = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -17,6 +18,15 @@ const ModelViewer = () => {
   const [resetTrigger, setResetTrigger] = useState(0);
 
   const handleFileDrop = useCallback((droppedFile: File) => {
+    const validation = validateFile(droppedFile);
+    
+    if (!validation.isValid) {
+      setError(validation.error);
+      setFile(null);
+      setMetadata(null);
+      return;
+    }
+
     setFile(droppedFile);
     setError(null);
   }, []);
@@ -42,7 +52,7 @@ const ModelViewer = () => {
       {/* Main UI Layer */}
       <Sidebar metadata={metadata} isLoading={isLoading} error={error} />
       
-      {file && !isLoading && (
+      {file && !isLoading && !error && (
         <Controls 
           onFitToView={() => setFitTrigger(prev => prev + 1)} 
           onResetCamera={() => setResetTrigger(prev => prev + 1)} 
@@ -53,7 +63,7 @@ const ModelViewer = () => {
       <DropOverlay onFileDrop={handleFileDrop} />
 
       {/* Empty State / Initial Instructions */}
-      {!file && !isLoading && (
+      {(!file || error) && !isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <div className="max-w-xl text-center px-6">
             <div className="mb-8 inline-flex items-center justify-center p-6 rounded-3xl bg-primary/10 border border-primary/20 backdrop-blur-sm animate-pulse">
@@ -66,13 +76,13 @@ const ModelViewer = () => {
               Professional browser-based inspection for modern engineering workflows.
             </p>
             
-            <div className="relative pointer-events-auto">
+            <div className="relative pointer-events-auto flex flex-col items-center gap-4">
               <input
                 type="file"
                 id="file-upload"
                 className="hidden"
                 onChange={handleInputFileChange}
-                accept=".gltf,.glb,.obj,.fbx,.stl,.ply"
+                accept={SUPPORTED_EXTENSIONS.map(ext => `.${ext}`).join(',')}
               />
               <label 
                 htmlFor="file-upload" 
@@ -80,10 +90,15 @@ const ModelViewer = () => {
               >
                 Browse Files
               </label>
+              
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60 font-code uppercase tracking-wider">
+                <ShieldCheck className="w-3 h-3" />
+                Secure Sandbox Processing
+              </div>
             </div>
 
             <p className="mt-12 text-[11px] font-code text-muted-foreground/60 uppercase tracking-widest leading-loose max-w-lg mx-auto">
-              Supported formats: 3dm, 3ds, 3mf, amf, bim, brep, dae, fbx, fcstd, gltf, ifc, iges, step, stl, obj, off, ply, wrl
+              Supported formats: {SUPPORTED_EXTENSIONS.join(', ')}
             </p>
           </div>
         </div>
