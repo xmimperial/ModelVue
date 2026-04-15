@@ -9,6 +9,7 @@ import { useViewerStore } from '@/store/use-viewer-store';
 /**
  * Interactive Camera and Rendering System.
  * Implements OrbitControls for rotation, zoom, and panning.
+ * Handles strict lifecycle management for resource cleanup.
  */
 const ThreeCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,14 +65,14 @@ const ThreeCanvas: React.FC = () => {
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // 2. CAMERA CONTROLS (INTERACTION SYSTEM)
+    // 2. CAMERA CONTROLS
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true; // Smooth transitions
+    controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = true;
     controlsRef.current = controls;
 
-    // 3. LIGHTING SYSTEM
+    // 3. LIGHTING
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
@@ -110,24 +111,36 @@ const ThreeCanvas: React.FC = () => {
     };
     window.addEventListener('resize', handleResize);
 
+    // CLEANUP ON UNMOUNT
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(frameId);
-      if (modelRef.current) disposeObject(modelRef.current);
-      renderer.dispose();
-      if (containerRef.current) {
+      
+      // Dispose current model
+      if (modelRef.current) {
+        disposeObject(modelRef.current);
+      }
+
+      // Dispose renderer resources
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+        rendererRef.current.forceContextLoss();
+      }
+
+      // Clear DOM
+      if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);
       }
     };
   }, []);
 
-  // Sync helpers
+  // Sync helpers visibility
   useEffect(() => {
     if (gridHelperRef.current) gridHelperRef.current.visible = showGrid;
     if (axesHelperRef.current) axesHelperRef.current.visible = showAxes;
   }, [showGrid, showAxes]);
 
-  // Sync wireframe
+  // Sync wireframe mode
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.traverse((child) => {
@@ -143,13 +156,14 @@ const ThreeCanvas: React.FC = () => {
     }
   }, [wireframe]);
 
-  // Model Loading Pipeline
+  // Model Loading & Swapping Pipeline
   useEffect(() => {
     if (!file || !sceneRef.current) return;
 
     const runPipeline = async () => {
       setIsLoading(true);
       
+      // Clean up previous model resources
       if (modelRef.current) {
         sceneRef.current?.remove(modelRef.current);
         disposeObject(modelRef.current);
@@ -196,7 +210,7 @@ const ThreeCanvas: React.FC = () => {
     runPipeline();
   }, [file, setMetadata, setError, setIsLoading]);
 
-  // Triggers
+  // Handle interaction triggers from store
   useEffect(() => {
     if (fitToViewTrigger > 0 && modelRef.current && cameraRef.current && controlsRef.current) {
       fitModelToView(modelRef.current, cameraRef.current, controlsRef.current);
@@ -206,8 +220,6 @@ const ThreeCanvas: React.FC = () => {
   useEffect(() => {
     if (resetCameraTrigger > 0 && cameraRef.current && controlsRef.current) {
       controlsRef.current.reset();
-      // OrbitControls.reset() handles restoring camera to its initial state
-      // but if we want a hard reset to (20,20,20):
       cameraRef.current.position.set(20, 20, 20);
       controlsRef.current.target.set(0, 0, 0);
       controlsRef.current.update();

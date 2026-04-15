@@ -64,27 +64,41 @@ export function fitModelToView(
 }
 
 /**
- * Stage 5: Dispose - Recursively clean up Three.js objects to prevent memory leaks
+ * Stage 5: Dispose - Recursively clean up Three.js objects to prevent memory leaks.
+ * This function ensures that geometries, materials, and textures are explicitly
+ * removed from the GPU.
  */
-export function disposeObject(object: THREE.Object3D) {
+export function disposeObject(object: THREE.Object3D | null) {
+  if (!object) return;
+
   object.traverse((child) => {
     if ((child as THREE.Mesh).isMesh) {
       const mesh = child as THREE.Mesh;
-      mesh.geometry.dispose();
+      
+      // Dispose Geometry
+      if (mesh.geometry) {
+        mesh.geometry.dispose();
+      }
 
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach(material => disposeMaterial(material));
-      } else {
-        disposeMaterial(mesh.material);
+      // Dispose Materials
+      if (mesh.material) {
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach(material => disposeMaterial(material));
+        } else {
+          disposeMaterial(mesh.material);
+        }
       }
     }
   });
 }
 
+/**
+ * Internal helper to dispose of a material and its associated textures.
+ */
 function disposeMaterial(material: THREE.Material) {
   material.dispose();
   
-  // Dispose all textures
+  // Explicitly dispose all textures to free up VRAM
   for (const key in material) {
     const value = (material as any)[key];
     if (value && value instanceof THREE.Texture) {
