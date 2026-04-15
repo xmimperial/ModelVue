@@ -1,9 +1,18 @@
+
 "use client"
 
 import React from 'react';
-import { Maximize, RotateCcw, HelpCircle } from 'lucide-react';
+import { Maximize, RotateCcw, HelpCircle, Box, MousePointer2, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription
+} from '@/components/ui/dialog';
 import { useViewerStore } from '@/store/use-viewer-store';
 
 const Controls: React.FC = () => {
@@ -45,23 +54,71 @@ const Controls: React.FC = () => {
 
         <div className="w-px h-6 bg-border/50 mx-1" role="separator" aria-hidden="true" />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-muted-foreground hover:text-accent rounded-xl"
-              aria-label="Interaction shortcuts help"
-            >
-              <HelpCircle className="w-5 h-5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs space-y-1 font-body text-xs p-3" role="dialog" aria-label="Interaction Guide">
-            <p><span className="font-bold text-accent">Rotate:</span> Left-Click + Drag</p>
-            <p><span className="font-bold text-accent">Pan:</span> Right-Click + Drag</p>
-            <p><span className="font-bold text-accent">Zoom:</span> Scroll Mouse</p>
-          </TooltipContent>
-        </Tooltip>
+        <Dialog>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-accent rounded-xl"
+                  aria-label="Interaction shortcuts help"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                </Button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="font-headline font-medium">Interaction Guide</TooltipContent>
+          </Tooltip>
+          <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-2xl border-border/40 rounded-[2rem]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-2xl font-headline font-black tracking-tight">
+                <HelpCircle className="w-6 h-6 text-primary" />
+                Navigation Guide
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground font-body">
+                Master the ModelVue 3D viewport with these simple gestures.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="flex items-start gap-4 p-4 rounded-2xl bg-muted/30 border border-border/20 transition-all hover:bg-muted/50">
+                <div className="p-3 bg-primary/10 rounded-xl">
+                  <MousePointer2 className="w-5 h-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold font-headline uppercase tracking-wider">Rotate View</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Hold <span className="text-primary font-bold">Left-Click</span> and drag to rotate the camera around the model.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 rounded-2xl bg-muted/30 border border-border/20 transition-all hover:bg-muted/50">
+                <div className="p-3 bg-accent/10 rounded-xl">
+                  <Move className="w-5 h-5 text-accent" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold font-headline uppercase tracking-wider">Pan Camera</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Hold <span className="text-accent font-bold">Right-Click</span> and drag to slide the viewport horizontally or vertically.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 rounded-2xl bg-muted/30 border border-border/20 transition-all hover:bg-muted/50">
+                <div className="p-3 bg-secondary rounded-xl">
+                  <Box className="w-5 h-5 text-white" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold font-headline uppercase tracking-wider">Zoom Control</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Use your <span className="font-bold">Mouse Wheel</span> or pinch gestures to zoom in and out of fine geometry.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </TooltipProvider>
     </nav>
   );
