@@ -1,16 +1,14 @@
 /**
  * @fileOverview Security & File Validation Layer for ModelVue
- * 
- * Requirements implemented:
- * 1. Extension Whitelisting: Only professional 3D formats allowed.
- * 2. Size Constraints: 50MB limit to prevent memory exhaustion.
- * 3. Payload Protection: Static parsing only, no execution of embedded scripts.
- * 4. Input Sanitization: Filename cleaning.
  */
 
 export const MAX_FILE_SIZE_MB = 50;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+/**
+ * Comprehensive list of supported formats based on available Three.js loaders
+ * and common professional interchange formats.
+ */
 export const SUPPORTED_EXTENSIONS = [
   '3dm', '3ds', '3mf', 'amf', 'bim', 'brep', 'dae', 'fbx', 'fcstd', 
   'gltf', 'glb', 'ifc', 'iges', 'step', 'stl', 'obj', 'off', 'ply', 'wrl'
@@ -26,7 +24,7 @@ export interface ValidationResult {
  * Validates a file against security and performance constraints.
  */
 export function validateFile(file: File): ValidationResult {
-  // 1. Sanitize Filename (remove potentially dangerous characters)
+  // 1. Sanitize Filename
   const sanitizedName = file.name.replace(/[^\w\s\.-]/gi, '_');
   
   // 2. Extension Validation
@@ -47,10 +45,6 @@ export function validateFile(file: File): ValidationResult {
       sanitizedName: null
     };
   }
-
-  // 4. Content Type check (Basic protection against spoofed extensions)
-  // Note: Many 3D formats don't have standard MIME types, so we rely heavily 
-  // on the Three.js loaders' own parsing failures to catch corrupted/malicious content.
   
   return {
     isValid: true,
@@ -58,12 +52,3 @@ export function validateFile(file: File): ValidationResult {
     sanitizedName
   };
 }
-
-/**
- * SECURITY CHECKLIST:
- * [x] Enforce hard size limits to prevent Zip Bomb or Memory Exhaustion attacks.
- * [x] Whitelist extensions rather than blacklisting to prevent bypass.
- * [x] Sanitize filenames to prevent path traversal or XSS via UI reflection.
- * [x] Use read-only Data URIs/Blobs for Three.js parsing.
- * [x] Rely on structural parsers (GLTFLoader, etc.) which treat content as data, not code.
- */

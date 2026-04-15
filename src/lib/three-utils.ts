@@ -1,102 +1,18 @@
-
 /**
- * @fileOverview 3D Rendering Pipeline Module for ModelVue
+ * @fileOverview 3D Rendering Pipeline Utilities for ModelVue
  * 
- * Optimized for performance:
- * 1. Lazy Loading: Loaders are imported dynamically only when needed.
- * 2. Memory Efficiency: Explicit disposal of geometries, materials, and textures.
- * 3. Normalization: Standardized viewport fitting logic.
+ * Focuses on scene manipulation, camera normalization, and resource disposal.
+ * Delegating loading logic to LoaderManager.
  */
 
 import * as THREE from 'three';
-
-export type SupportedFormat = 'gltf' | 'glb' | 'obj' | 'fbx' | 'stl' | 'ply';
+import { LoaderManager } from './loader-manager';
 
 /**
- * Stage 2: Parse - Asynchronously load the model using dynamic imports
+ * Stage 2: Parse - Asynchronously load the model using the LoaderManager
  */
 export async function loadModel(file: File): Promise<THREE.Object3D> {
-  const extension = file.name.split('.').pop()?.toLowerCase() as SupportedFormat;
-  const url = URL.createObjectURL(file);
-
-  return new Promise(async (resolve, reject) => {
-    const cleanupUrl = () => URL.revokeObjectURL(url);
-
-    try {
-      switch (extension) {
-        case 'glb':
-        case 'gltf': {
-          const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
-          const loader = new GLTFLoader();
-          loader.load(url, (gltf) => {
-            cleanupUrl();
-            resolve(gltf.scene);
-          }, undefined, (err) => {
-            cleanupUrl();
-            reject(err);
-          });
-          break;
-        }
-        case 'obj': {
-          const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js');
-          const loader = new OBJLoader();
-          loader.load(url, (obj) => {
-            cleanupUrl();
-            resolve(obj);
-          }, undefined, (err) => {
-            cleanupUrl();
-            reject(err);
-          });
-          break;
-        }
-        case 'fbx': {
-          const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
-          const loader = new FBXLoader();
-          loader.load(url, (fbx) => {
-            cleanupUrl();
-            resolve(fbx);
-          }, undefined, (err) => {
-            cleanupUrl();
-            reject(err);
-          });
-          break;
-        }
-        case 'stl': {
-          const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
-          const loader = new STLLoader();
-          loader.load(url, (geometry) => {
-            cleanupUrl();
-            const material = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5, metalness: 0.5 });
-            resolve(new THREE.Mesh(geometry, material));
-          }, undefined, (err) => {
-            cleanupUrl();
-            reject(err);
-          });
-          break;
-        }
-        case 'ply': {
-          const { PLYLoader } = await import('three/examples/jsm/loaders/PLYLoader.js');
-          const loader = new PLYLoader();
-          loader.load(url, (geometry) => {
-            cleanupUrl();
-            geometry.computeVertexNormals();
-            const material = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5, metalness: 0.5 });
-            resolve(new THREE.Mesh(geometry, material));
-          }, undefined, (err) => {
-            cleanupUrl();
-            reject(err);
-          });
-          break;
-        }
-        default:
-          cleanupUrl();
-          reject(new Error(`Format .${extension} is not supported natively in the optimized pipeline.`));
-      }
-    } catch (err) {
-      cleanupUrl();
-      reject(err);
-    }
-  });
+  return LoaderManager.load(file);
 }
 
 /**
