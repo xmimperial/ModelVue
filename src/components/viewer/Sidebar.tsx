@@ -2,7 +2,7 @@
 "use client"
 
 import React from 'react';
-import { Info, Loader2, FileText, Move3d, Layers, Boxes, AlertCircle } from 'lucide-react';
+import { Info, Loader2, FileText, Move3d, Layers, Boxes, AlertCircle, Box, Upload } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
