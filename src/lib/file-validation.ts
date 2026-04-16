@@ -6,12 +6,14 @@ export const MAX_FILE_SIZE_MB = 50;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 /**
- * Comprehensive list of supported formats based on available Three.js loaders
- * and common professional interchange formats.
+ * Comprehensive list of supported formats. 
+ * Note: CAD formats (.step, .ifc, etc.) are listed to provide better error messages
+ * rather than just "unsupported".
  */
 export const SUPPORTED_EXTENSIONS = [
-  '3dm', '3ds', '3mf', 'amf', 'bim', 'brep', 'dae', 'fbx', 'fcstd', 
-  'gltf', 'glb', 'ifc', 'iges', 'step', 'stl', 'obj', 'off', 'ply', 'wrl'
+  'gltf', 'glb', 'obj', 'fbx', 'stl', 'ply', 'dae', 
+  '3mf', '3ds', 'amf', 'wrl', '3dm', 'step', 'stp', 
+  'iges', 'igs', 'brep', 'fcstd', 'ifc', 'bim', 'off'
 ];
 
 export interface ValidationResult {
@@ -32,7 +34,7 @@ export function validateFile(file: File): ValidationResult {
   if (!extension || !SUPPORTED_EXTENSIONS.includes(extension)) {
     return {
       isValid: false,
-      error: `Unsupported format: .${extension}. Please use a supported 3D format.`,
+      error: `Unsupported format: .${extension}. Please use a common 3D interchange format like GLB, FBX, or OBJ.`,
       sanitizedName: null
     };
   }

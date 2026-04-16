@@ -7,7 +7,9 @@
 
 import * as THREE from 'three';
 
-export type SupportedFormat = 'gltf' | 'glb' | 'obj' | 'fbx' | 'stl' | 'ply' | 'dae' | '3mf' | '3ds' | 'amf' | 'wrl';
+export type SupportedFormat = 
+  | 'gltf' | 'glb' | 'obj' | 'fbx' | 'stl' | 'ply' | 'dae' 
+  | '3mf' | '3ds' | 'amf' | 'wrl';
 
 /**
  * Registry of dynamic loader importers.
@@ -39,10 +41,17 @@ export class LoaderManager {
    */
   static async load(file: File): Promise<THREE.Object3D> {
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    
+    // Explicit feedback for CAD/specialized formats that require additional heavy dependencies
+    const cadFormats = ['step', 'stp', 'iges', 'igs', 'brep', 'fcstd', 'ifc', 'bim', '3dm'];
+    if (cadFormats.includes(extension)) {
+      throw new Error(`Format .${extension} is a CAD or specialized format. These require server-side conversion or additional libraries not supported in this client-side preview.`);
+    }
+
     const importFn = LOADER_MAPPING[extension];
 
     if (!importFn) {
-      throw new Error(`Format .${extension} is not supported by the loader manager.`);
+      throw new Error(`Format .${extension} is not directly supported by the browser-native viewer yet.`);
     }
 
     const url = URL.createObjectURL(file);
@@ -53,16 +62,17 @@ export class LoaderManager {
       
       return await new Promise((resolve, reject) => {
         // Resolve the specific loader class from the imported module
-        const LoaderClass = module.GLTFLoader || 
-                          module.OBJLoader || 
-                          module.FBXLoader || 
-                          module.STLLoader || 
-                          module.PLYLoader || 
-                          module.ColladaLoader || 
-                          module.ThreeMFLoader || 
-                          module.TDSLoader || 
-                          module.AMFLoader || 
-                          module.VRMLLoader;
+        const LoaderClass = 
+          module.GLTFLoader || 
+          module.OBJLoader || 
+          module.FBXLoader || 
+          module.STLLoader || 
+          module.PLYLoader || 
+          module.ColladaLoader || 
+          module.ThreeMFLoader || 
+          module.TDSLoader || 
+          module.AMFLoader || 
+          module.VRMLLoader;
 
         if (!LoaderClass) {
           reject(new Error(`Failed to initialize loader for .${extension}`));
@@ -79,7 +89,12 @@ export class LoaderManager {
             // Normalize outputs (Some loaders return scenes, others geometries, others groups)
             if (result.scene) resolve(result.scene);
             else if (result instanceof THREE.BufferGeometry) {
-              const material = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5, metalness: 0.5 });
+              const material = new THREE.MeshStandardMaterial({ 
+                color: 0x888888, 
+                roughness: 0.5, 
+                metalness: 0.5,
+                side: THREE.DoubleSide
+              });
               resolve(new THREE.Mesh(result, material));
             } else if (result.isObject3D || result instanceof THREE.Object3D) {
               resolve(result);
