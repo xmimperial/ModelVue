@@ -12,21 +12,20 @@ export type SupportedFormat =
   | '3mf' | '3ds' | 'amf' | 'wrl';
 
 /**
- * Registry of dynamic loader importers.
- * We use dynamic imports to keep the main bundle light.
+ * Registry of dynamic loader importers using modern three/addons paths.
  */
 const LOADER_MAPPING: Record<string, () => Promise<any>> = {
-  glb: () => import('three/examples/jsm/loaders/GLTFLoader.js'),
-  gltf: () => import('three/examples/jsm/loaders/GLTFLoader.js'),
-  obj: () => import('three/examples/jsm/loaders/OBJLoader.js'),
-  fbx: () => import('three/examples/jsm/loaders/FBXLoader.js'),
-  stl: () => import('three/examples/jsm/loaders/STLLoader.js'),
-  ply: () => import('three/examples/jsm/loaders/PLYLoader.js'),
-  dae: () => import('three/examples/jsm/loaders/ColladaLoader.js'),
-  '3mf': () => import('three/examples/jsm/loaders/3MFLoader.js'),
-  '3ds': () => import('three/examples/jsm/loaders/TDSLoader.js'),
-  amf: () => import('three/examples/jsm/loaders/AMFLoader.js'),
-  wrl: () => import('three/examples/jsm/loaders/VRMLLoader.js'),
+  glb: () => import('three/addons/loaders/GLTFLoader.js'),
+  gltf: () => import('three/addons/loaders/GLTFLoader.js'),
+  obj: () => import('three/addons/loaders/OBJLoader.js'),
+  fbx: () => import('three/addons/loaders/FBXLoader.js'),
+  stl: () => import('three/addons/loaders/STLLoader.js'),
+  ply: () => import('three/addons/loaders/PLYLoader.js'),
+  dae: () => import('three/addons/loaders/ColladaLoader.js'),
+  '3mf': () => import('three/addons/loaders/3MFLoader.js'),
+  '3ds': () => import('three/addons/loaders/TDSLoader.js'),
+  amf: () => import('three/addons/loaders/AMFLoader.js'),
+  wrl: () => import('three/addons/loaders/VRMLLoader.js'),
 };
 
 /**
@@ -42,16 +41,16 @@ export class LoaderManager {
   static async load(file: File): Promise<THREE.Object3D> {
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
     
-    // Explicit feedback for CAD/specialized formats that require additional heavy dependencies
-    const cadFormats = ['step', 'stp', 'iges', 'igs', 'brep', 'fcstd', 'ifc', 'bim', '3dm'];
+    // Industrial CAD formats that typically require server-side conversion or specialized heavy WASM
+    const cadFormats = ['step', 'stp', 'iges', 'igs', 'brep', 'fcstd', 'ifc', 'bim', '3dm', 'off'];
     if (cadFormats.includes(extension)) {
-      throw new Error(`Format .${extension} is a CAD or specialized format. These require server-side conversion or additional libraries not supported in this client-side preview.`);
+      throw new Error(`Format .${extension} is a CAD or specialized industrial format. These require server-side conversion or specialized parsers not available in this client-side inspection mode.`);
     }
 
     const importFn = LOADER_MAPPING[extension];
 
     if (!importFn) {
-      throw new Error(`Format .${extension} is not directly supported by the browser-native viewer yet.`);
+      throw new Error(`Format .${extension} is not directly supported for browser-native inspection yet.`);
     }
 
     const url = URL.createObjectURL(file);
@@ -61,7 +60,7 @@ export class LoaderManager {
       const module = await importFn();
       
       return await new Promise((resolve, reject) => {
-        // Resolve the specific loader class from the imported module
+        // Dynamic resolution of the specific loader class from the imported module
         const LoaderClass = 
           module.GLTFLoader || 
           module.OBJLoader || 
@@ -75,7 +74,7 @@ export class LoaderManager {
           module.VRMLLoader;
 
         if (!LoaderClass) {
-          reject(new Error(`Failed to initialize loader for .${extension}`));
+          reject(new Error(`Failed to initialize parser for .${extension}`));
           return;
         }
 
@@ -86,9 +85,20 @@ export class LoaderManager {
           (result: any) => {
             cleanup();
             
-            // Normalize outputs (Some loaders return scenes, others geometries, others groups)
-            if (result.scene) resolve(result.scene);
-            else if (result instanceof THREE.BufferGeometry) {
+            // 1. Handle Scene/Group objects (GLTF, Collada, FBX, OBJ)
+            if (result.scene && (result.scene.isObject3D || result.scene instanceof THREE.Object3D)) {
+              resolve(result.scene);
+              return;
+            }
+            
+            // 2. Handle direct Object3D returns
+            if (result.isObject3D || result instanceof THREE.Object3D) {
+              resolve(result);
+              return;
+            }
+
+            // 3. Handle BufferGeometry returns (STL, PLY)
+            if (result.isBufferGeometry || result instanceof THREE.BufferGeometry) {
               const material = new THREE.MeshStandardMaterial({ 
                 color: 0x888888, 
                 roughness: 0.5, 
@@ -96,22 +106,30 @@ export class LoaderManager {
                 side: THREE.DoubleSide
               });
               resolve(new THREE.Mesh(result, material));
-            } else if (result.isObject3D || result instanceof THREE.Object3D) {
-              resolve(result);
-            } else {
-              reject(new Error('Loader returned an unrecognizable format.'));
+              return;
             }
+
+            // 4. Nested structure fallback
+            const fallback = result.group || result.object || (result.scenes && result.scenes[0]);
+            if (fallback && (fallback.isObject3D || fallback instanceof THREE.Object3D)) {
+              resolve(fallback);
+              return;
+            }
+
+            reject(new Error(`The loader for .${extension} parsed the file but couldn't create a valid 3D scene.`));
           },
           undefined,
           (err: any) => {
             cleanup();
-            reject(err);
+            console.error('Loader error:', err);
+            reject(new Error(`Failed to parse the file structure for .${extension}. The file might be corrupted or in an incompatible sub-version.`));
           }
         );
       });
     } catch (err) {
       cleanup();
-      throw err;
+      console.error('Import error:', err);
+      throw new Error(`The parser for .${extension} could not be initialized in this environment.`);
     }
   }
 }

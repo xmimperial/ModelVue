@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { fitModelToView, loadModel, disposeObject } from '@/lib/three-utils';
 import { useViewerStore } from '@/store/use-viewer-store';
 
@@ -116,18 +116,14 @@ const ThreeCanvas: React.FC = () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(frameId);
       
-      // Dispose current model
       if (modelRef.current) {
         disposeObject(modelRef.current);
       }
 
-      // Dispose renderer resources
       if (rendererRef.current) {
         rendererRef.current.dispose();
-        rendererRef.current.forceContextLoss();
       }
 
-      // Clear DOM
       if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);
       }
@@ -158,7 +154,17 @@ const ThreeCanvas: React.FC = () => {
 
   // Model Loading & Swapping Pipeline
   useEffect(() => {
-    if (!file || !sceneRef.current) return;
+    if (!sceneRef.current) return;
+
+    // Handle File Reset
+    if (!file) {
+      if (modelRef.current) {
+        sceneRef.current.remove(modelRef.current);
+        disposeObject(modelRef.current);
+        modelRef.current = null;
+      }
+      return;
+    }
 
     const runPipeline = async () => {
       setIsLoading(true);
